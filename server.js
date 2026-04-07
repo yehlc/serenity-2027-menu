@@ -195,12 +195,8 @@ app.post('/api/orders', async (req, res) => {
     console.log('總金額:', totalAmount);
     console.log('==================');
 
-    // 發送 Email 通知（失敗不影響訂單成立）
-    try {
-      await sendOrderEmail(order);
-    } catch (emailErr) {
-      console.error('Email 發送失敗（訂單已成立）:', emailErr.message);
-    }
+    // 發送 Email 通知（失敗不影響訂單成立）- fire and forget，不阻塞回應
+    sendOrderEmail(order).catch(err => console.error('Email 發送失敗:', err.message));
 
     res.json({ 
       success: true, 
