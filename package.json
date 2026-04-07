@@ -1,0 +1,14 @@
+{
+  "name": "serenity-2027-menu",
+  "version": "1.0.0",
+  "description": "祥和蔬食 2027 年菜線上點餐系統",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "@line/bot-sdk": "^7.9.0",
+    "nodemailer": "^6.9.8"
+  }
+}

@@ -1,0 +1,12 @@
+[build]
+  builder = "NODESOURCE"
+  buildCommand = "npm install"
+  startCommand = "node server.js"
+
+[deploy]
+  region = "europe-west4"
+  numInstances = 1
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
