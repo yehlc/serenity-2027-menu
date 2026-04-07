@@ -26,7 +26,6 @@ if (lineConfig.channelAccessToken && lineConfig.channelSecret) {
 }
 
 // Express config
-app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ============ 年菜菜單資料 ============
