@@ -13,8 +13,14 @@ const lineConfig = {
 };
 
 if (lineConfig.channelAccessToken && lineConfig.channelSecret) {
-  lineClient = new line.Client(lineConfig);
-  console.log('LINE Bot credentials loaded successfully');
+  try {
+    lineClient = new line.Client(lineConfig);
+    console.log('LINE Bot credentials loaded successfully');
+    console.log('lineClient type:', typeof lineClient);
+    console.log('lineClient.replyMessage type:', typeof lineClient.replyMessage);
+  } catch (e) {
+    console.error('LINE Client initialization error:', e);
+  }
 } else {
   console.log('WARNING: LINE Bot credentials not set - LINE features disabled');
 }
@@ -139,11 +145,16 @@ app.post('/webhook', line.middleware(lineConfig), (req, res) => {
 });
 
 async function handleLineEvent(event) {
-  if (!lineClient) return;
+  if (!lineClient) {
+    console.log('handleLineEvent: lineClient is null');
+    return;
+  }
   if (event.type !== 'message' && event.type !== 'postback') return;
   
   const userMessage = event.message ? event.message.text : '';
   const userId = event.source.userId;
+
+  console.log('Handling event:', event.type, 'from user:', userId, 'message:', userMessage);
 
   // 回覆選單
   const replyText = `🧧 祥和蔬食 2027 年菜預購
@@ -157,10 +168,17 @@ async function handleLineEvent(event) {
 
 或直接點選下方按鈕 👇`;
 
-  return lineClient.replyMessage(event.replyToken, {
-    type: 'text',
-    text: replyText
-  });
+  try {
+    const result = await lineClient.replyMessage(event.replyToken, {
+      type: 'text',
+      text: replyText
+    });
+    console.log('Reply sent successfully:', result);
+  } catch (err) {
+    console.error('replyMessage error:', err.message);
+    console.error('lineClient:', lineClient);
+    console.error('lineClient.replyMessage:', typeof lineClient.replyMessage);
+  }
 }
 
 // ============ Email 通知 ============
