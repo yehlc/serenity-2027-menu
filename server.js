@@ -1,17 +1,20 @@
 const express = require('express');
-const line = require('@line/bot-sdk');
+const { LineBotClient, validateSignature } = require('@line/bot-sdk');
 const nodemailer = require('nodemailer');
 const path = require('path');
 
 const app = express();
 
-// LINE Bot SDK config
+// LINE Bot SDK config - credentials needed for LINE features
+let lineClient = null;
 const lineConfig = {
-  channelAccessToken: process.env.LINE_ACCESS_TOKEN || 'YOUR_LINE_ACCESS_TOKEN',
-  channelSecret: process.env.LINE_CHANNEL_SECRET || 'YOUR_LINE_CHANNEL_SECRET'
+  channelAccessToken: process.env.LINE_ACCESS_TOKEN,
+  channelSecret: process.env.LINE_CHANNEL_SECRET
 };
 
-const lineClient = new line.Client(lineConfig);
+if (lineConfig.channelAccessToken && lineConfig.channelSecret) {
+  lineClient = new LineBotClient(lineConfig);
+}
 
 // Express config
 app.use(express.json());
@@ -105,7 +108,19 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // ============ LINE Webhook ============
-app.post('/webhook', line.middleware(lineConfig), (req, res) => {
+app.post('/webhook', (req, res) => {
+  if (lineClient && lineConfig.channelSecret) {
+    const sig = req.headers['x-line-signature'];
+    const body = JSON.stringify(req.body);
+    if (!validateSignature(body, lineConfig.channelSecret, sig)) {
+      return res.status(403).send('Forbidden');
+    }
+  }
+  
+  if (!lineClient) {
+    return res.status(500).send('LINE Bot not configured');
+  }
+  
   Promise
     .all(req.body.events.map(handleLineEvent))
     .then(() => res.end())
@@ -116,6 +131,7 @@ app.post('/webhook', line.middleware(lineConfig), (req, res) => {
 });
 
 async function handleLineEvent(event) {
+  if (!lineClient) return;
   if (event.type !== 'message' && event.type !== 'postback') return;
   
   const userMessage = event.message ? event.message.text : '';
