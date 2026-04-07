@@ -86,32 +86,49 @@ app.post('/api/orders', async (req, res) => {
     const { combo, sideDishes, customer, notes, totalAmount } = req.body;
     
     // 驗證必填欄位
-    if (!customer.name || !customer.phone || !customer.store || !customer.pickupDate) {
-      return res.status(400).json({ error: '請填寫完整顧客資料' });
+    if (!customer || !customer.name || !customer.phone || !customer.store || !customer.pickupDate) {
+      return res.status(400).json({ error: '請填寫完整顧客資料（姓名、電話、取貨分店、取貨日期）' });
     }
 
     const order = {
       id: 'ORD' + Date.now(),
       timestamp: new Date().toISOString(),
       combo,
-      sideDishes,
+      sideDishes: sideDishes || [],
       customer,
-      notes,
-      totalAmount,
-      status: 'pending'
+      notes: notes || '',
+      totalAmount: totalAmount || 0,
+      status: 'pending',
+      paymentStatus: 'unpaid'
     };
 
-    // 發送 Email 通知
-    await sendOrderEmail(order);
+    console.log('===== 新訂單 =====');
+    console.log('訂單編號:', order.id);
+    console.log('顧客:', order.customer.name);
+    console.log('電話:', order.customer.phone);
+    console.log('分店:', order.customer.store);
+    console.log('取貨日期:', order.customer.pickupDate);
+    console.log('套餐:', combo ? combo.name : '未選');
+    console.log('單點數量:', (sideDishes || []).length);
+    console.log('總金額:', totalAmount);
+    console.log('====================');
 
-    // 發送 LINE 通知（可選）
-    // await sendLineNotification(order);
+    // 發送 Email 通知（失敗不影響訂單成立）
+    try {
+      await sendOrderEmail(order);
+    } catch (emailErr) {
+      console.error('Email 發送失敗（訂單已成立）:', emailErr.message);
+    }
 
-    console.log('新訂單:', JSON.stringify(order, null, 2));
-    res.json({ success: true, orderId: order.id, order });
+    res.json({ 
+      success: true, 
+      orderId: order.id, 
+      message: '訂單已送出！店家會儘快與您聯絡確認',
+      order 
+    });
   } catch (error) {
     console.error('訂單錯誤:', error);
-    res.status(500).json({ error: '訂單處理失敗，請稍後再試' });
+    res.status(500).json({ error: '訂單處理失敗，請稍後再試，或直接致電店家：02-2357-0377' });
   }
 });
 
