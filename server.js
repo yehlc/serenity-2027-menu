@@ -39,6 +39,7 @@ if (lineConfig.channelAccessToken && lineConfig.channelSecret) {
 }
 
 // Express config
+app.use(express.json());  // 解析 JSON body（靜態檔案之後，不影響 static serving）
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ============ 訂單儲存功能 ============
