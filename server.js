@@ -38,9 +38,11 @@ if (lineConfig.channelAccessToken && lineConfig.channelSecret) {
   console.log('WARNING: LINE Bot credentials not set - LINE features disabled');
 }
 
-// Express config
-app.use(express.json());  // 解析 JSON body（靜態檔案之後，不影響 static serving）
+// Express config - static files first
 app.use(express.static(path.join(__dirname, 'public')));
+
+// JSON parsing ONLY for /api routes (not /webhook which needs raw body for LINE signature)
+app.use('/api', express.json());
 
 // ============ 訂單儲存功能 ============
 function loadOrders() {
