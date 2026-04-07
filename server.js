@@ -14,11 +14,17 @@ const lineConfig = {
 
 if (lineConfig.channelAccessToken && lineConfig.channelSecret) {
   lineClient = new LineBotClient(lineConfig);
+  console.log('LINE Bot credentials loaded successfully');
+} else {
+  console.log('WARNING: LINE Bot credentials not set - LINE features disabled');
 }
 
-// Express config
-app.use(express.json());
+// Express config - static files first, then JSON parser for API routes
 app.use(express.static(path.join(__dirname, 'public')));
+
+// JSON parser for API routes (but NOT for /webhook which needs raw body)
+app.use('/api', express.json());
+app.use('/health', express.json());
 
 // ============ 年菜菜單資料 ============
 const MENU_DATA = {
@@ -113,7 +119,8 @@ app.get('/webhook', (req, res) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
   
-  if (mode === 'subscribe' && token === '') {
+  console.log('GET /webhook - mode:', mode, 'challenge:', challenge);
+  if (mode === 'subscribe' && (token === '' || token === null)) {
     res.send(challenge);
   } else {
     res.send('ERROR');
@@ -121,24 +128,39 @@ app.get('/webhook', (req, res) => {
 });
 
 // ============ LINE Webhook (POST for LINE events) ============
-app.post('/webhook', (req, res) => {
+// Use express.raw to get the raw body for signature validation
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const rawBody = req.body.toString();
+  
   if (lineClient && lineConfig.channelSecret) {
     const sig = req.headers['x-line-signature'];
-    const body = JSON.stringify(req.body);
-    if (!validateSignature(body, lineConfig.channelSecret, sig)) {
+    try {
+      const valid = validateSignature(rawBody, lineConfig.channelSecret, sig);
+      if (!valid) {
+        console.log('Signature validation failed');
+        return res.status(403).send('Forbidden');
+      }
+    } catch (e) {
+      console.log('Signature validation error:', e.message);
       return res.status(403).send('Forbidden');
     }
-  }
-  
-  if (!lineClient) {
+  } else {
+    console.log('LINE credentials not configured');
     return res.status(500).send('LINE Bot not configured');
   }
   
+  let events = [];
+  try {
+    events = JSON.parse(rawBody).events || [];
+  } catch (e) {
+    console.log('JSON parse error:', e.message);
+  }
+  
   Promise
-    .all(req.body.events.map(handleLineEvent))
+    .all(events.map(handleLineEvent))
     .then(() => res.end())
     .catch(err => {
-      console.error(err);
+      console.error('Event handling error:', err);
       res.status(500).end();
     });
 });
