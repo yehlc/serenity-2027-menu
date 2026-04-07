@@ -148,35 +148,161 @@ async function handleLineEvent(event) {
     console.log('handleLineEvent: lineClient is null');
     return;
   }
-  if (event.type !== 'message' && event.type !== 'postback') return;
   
-  const userMessage = event.message ? event.message.text : '';
+  // Handle postback (when user clicks a quick reply button)
+  if (event.type === 'postback') {
+    const postbackData = event.postback && event.postback.data ? event.postback.data : '';
+    console.log('Postback data:', postbackData);
+    
+    if (postbackData === 'menu') {
+      return sendMenuLink(event.replyToken);
+    } else if (postbackData === 'order') {
+      return sendOrderLink(event.replyToken);
+    } else if (postbackData === 'contact') {
+      return sendContactInfo(event.replyToken);
+    }
+    return;
+  }
+  
+  if (event.type !== 'message') return;
+  
+  const userMessage = event.message ? (event.message.text || '').trim().toLowerCase() : '';
   const userId = event.source.userId;
 
-  console.log('Handling event:', event.type, 'from user:', userId, 'message:', userMessage);
+  console.log('Handling message:', userMessage, 'from user:', userId);
 
-  // 回覆選單
-  const replyText = `🧧 祥和蔬食 2027 年菜預購
+  // Normalize Chinese commands
+  const isMenu = userMessage.includes('菜單') || userMessage.includes('menu') || userMessage === '1';
+  const isOrder = userMessage.includes('預購') || userMessage.includes('order') || userMessage.includes('訂購') || userMessage === '2';
+  const isContact = userMessage.includes('聯絡') || userMessage.includes('contact') || userMessage.includes('聯繫') || userMessage === '4';
+  const isHelp = userMessage === '?' || userMessage === '？' || userMessage.includes('help') || userMessage === '3';
 
-感謝您的訊息！請選擇服務：
+  // Handle specific commands
+  if (isMenu) {
+    return sendMenuLink(event.replyToken);
+  } else if (isOrder) {
+    return sendOrderLink(event.replyToken);
+  } else if (isContact) {
+    return sendContactInfo(event.replyToken);
+  } else if (isHelp) {
+    return sendMainMenu(event.replyToken);
+  }
 
-1️⃣ 【瀏覽年菜菜單】輸入「菜單」
-2️⃣ 【開始預購】輸入「預購」
-3️⃣ 【查看我的訂單】輸入「訂單」
-4️⃣ 【聯絡我們】輸入「聯絡」
+  // Default: show main menu with quick replies
+  return sendMainMenu(event.replyToken);
+}
 
-或直接點選下方按鈕 👇`;
-
+async function sendMainMenu(replyToken) {
   try {
-    const result = await lineClient.replyMessage(event.replyToken, {
+    await lineClient.replyMessage(replyToken, {
       type: 'text',
-      text: replyText
+      text: '🧧 祥和蔬食 2027 年菜預購\n\n請選擇服務（直接點選按鈕）：',
+      quickReply: {
+        items: [
+          {
+            type: 'action',
+            action: { type: 'message', label: '🍽 瀏覽年菜菜單', text: '菜單' }
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: '🛒 開始預購', text: '預購' }
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: '📞 聯絡我們', text: '聯絡' }
+          },
+          {
+            type: 'action',
+            action: { type: 'uri', label: '📱 加入LINE好友', uri: 'https://line.me/ti/p/@sxsd1688' }
+          }
+        ]
+      }
     });
-    console.log('Reply sent successfully:', result);
   } catch (err) {
-    console.error('replyMessage error:', err.message);
-    console.error('lineClient:', lineClient);
-    console.error('lineClient.replyMessage:', typeof lineClient.replyMessage);
+    console.error('sendMainMenu error:', err.message);
+  }
+}
+
+async function sendMenuLink(replyToken) {
+  const menuUrl = 'https://serenity-2027-menu-production.up.railway.app';
+  try {
+    await lineClient.replyMessage(replyToken, {
+      type: 'text',
+      text: `🍽 【祥和蔬食 2027 年菜菜單】\n\n點選下方連結瀏覽圖文並茂的年菜菜單：\n\n${menuUrl}\n\n所有套餐及單點商品都在這裡！👆`,
+      quickReply: {
+        items: [
+          {
+            type: 'action',
+            action: { type: 'uri', label: '🍽 開啟年菜菜單', uri: menuUrl }
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: '🛒 我要預購', text: '預購' }
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: '🔙 回主選單', text: '?' }
+          }
+        ]
+      }
+    });
+  } catch (err) {
+    console.error('sendMenuLink error:', err.message);
+  }
+}
+
+async function sendOrderLink(replyToken) {
+  const orderUrl = 'https://serenity-2027-menu-production.up.railway.app';
+  try {
+    await lineClient.replyMessage(replyToken, {
+      type: 'text',
+      text: `🛒 【祥和蔬食 2027 年菜預購】\n\n立即線上預購年菜，享用豐盛年味：\n\n${orderUrl}\n\n⚠️ 即日起開放預購，數量有限！\n\n🏠 鎮江店：02-2357-0377\n🏠 慶城店：02-2546-6768`,
+      quickReply: {
+        items: [
+          {
+            type: 'action',
+            action: { type: 'uri', label: '🛒 開始預購', uri: orderUrl }
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: '🍽 先看菜單', text: '菜單' }
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: '🔙 回主選單', text: '?' }
+          }
+        ]
+      }
+    });
+  } catch (err) {
+    console.error('sendOrderLink error:', err.message);
+  }
+}
+
+async function sendContactInfo(replyToken) {
+  try {
+    await lineClient.replyMessage(replyToken, {
+      type: 'text',
+      text: `📞 【祥和蔬食料理】\n\n🏠 鎮江店\n地址：台北市鎮江街1巷1號\n電話：02-2357-0377 / 2391-7699\n營業：AM 11:00-14:00 / PM 17:00-21:00\n\n🏠 慶城店\n地址：台北市南京東路三段303巷7弄7號\n電話：02-2546-6768 / 2546-6188\n營業：AM 11:30-14:00 / PM 17:30-21:00\n\n📱 LINE：@sxsd1688`,
+      quickReply: {
+        items: [
+          {
+            type: 'action',
+            action: { type: 'uri', label: '📱 加入LINE好友', uri: 'https://line.me/ti/p/@sxsd1688' }
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: '🛒 開始預購', text: '預購' }
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: '🔙 回主選單', text: '?' }
+          }
+        ]
+      }
+    });
+  } catch (err) {
+    console.error('sendContactInfo error:', err.message);
   }
 }
 
