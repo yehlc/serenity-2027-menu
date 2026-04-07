@@ -374,7 +374,18 @@ async function sendOrderEmail(order) {
 
 // ============ 健康檢查 ============
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', bot: 'serenity-2027', time: new Date().toISOString() });
+  res.json({ status: 'ok', bot: 'serenity-2027', time: new Date().toISOString(), version: 'QUICK-REPLY-v1' });
+});
+
+// ============ 版本診斷 ============
+app.get('/api/version', (req, res) => {
+  res.json({ 
+    version: 'QUICK-REPLY-v1', 
+    commit: '74dd355',
+    hasQuickReply: true,
+    hasCommandHandling: true,
+    time: new Date().toISOString() 
+  });
 });
 
 // ============ 啟動伺服器 ============
