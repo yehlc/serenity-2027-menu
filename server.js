@@ -419,9 +419,24 @@ async function handleLineEvent(event) {
     return handleOrderSearch(event.replyToken, userMessage);
   }
   
-  // 更新菜單：更新#品名#價格#圖片URL
+  // 如果只是說「訂單」或「查詢」或「我的訂單」- 顯示說明
+  if (msg.includes('訂單') && (msg.includes('查') || msg.includes('找') || msg.includes('我的'))) {
+    return sendOrderLookupGuide(event.replyToken);
+  }
+  
+  // 更新菜單說明：更新#品名#價格#圖片URL
   if (msg.startsWith('更新#')) {
     return handleMenuUpdate(event.replyToken, userMessage);
+  }
+  
+  // 如果只是說「更新菜單」或「我要更新菜單」之類的，显示说明
+  if (msg.includes('更新') && (msg.includes('菜單') || msg.includes('menu'))) {
+    return sendMenuUpdateGuide(event.replyToken);
+  }
+  
+  // 如果只是說「訂單」或「查詢」或「我的訂單」- 顯示說明
+  if (msg.includes('訂單') && (msg.includes('查') || msg.includes('找') || msg.includes('我的'))) {
+    return sendOrderLookupGuide(event.replyToken);
   }
   
   // 今日訂單
@@ -615,6 +630,60 @@ ${imageUrl && imageUrl.trim() ? '🖼 圖片：已更新' : ''}
       type: 'text',
       text: `❌ 找不到「${name.trim()}」這個品項\n\n請確認品名是否正確`
     });
+  }
+}
+
+// 顯示更新菜單說明
+async function sendMenuUpdateGuide(replyToken) {
+  try {
+    await lineClient.replyMessage(replyToken, {
+      type: 'text',
+      text: `📝 【員工專區：更新年菜菜單】
+
+請使用以下格式更新菜單價格或圖片：
+
+🔧 更新格式：
+更新#品名#新價格#[圖片URL]
+
+📌 範例：
+更新#紅燒獅子頭#680
+更新#佛跳牆#1380#https://example.com/fotiaoqiang.jpg
+
+💡 小提示：
+• 價格直接填數字，不用加$
+• 圖片URL可省略（會保留原本圖片）
+• 一次只能更新一個品項
+
+❓ 需要更新多個品項請分次輸入`
+    });
+  } catch (err) {
+    console.error('sendMenuUpdateGuide error:', err.message);
+  }
+}
+
+// 顯示查詢訂單說明
+async function sendOrderLookupGuide(replyToken) {
+  try {
+    await lineClient.replyMessage(replyToken, {
+      type: 'text',
+      text: `📋 【查詢訂單說明】
+
+請使用以下格式查詢訂單：
+
+🔍 查詢格式：
+查單#姓名#電話
+
+📌 範例：
+查單#王小明#0912345678
+
+💡 小提示：
+• 姓名和電話都要填才能查詢
+• 查詢的是該顧客的所有訂單記錄
+
+❓ 如有問題請致電：02-2357-0377`
+    });
+  } catch (err) {
+    console.error('sendOrderLookupGuide error:', err.message);
   }
 }
 
