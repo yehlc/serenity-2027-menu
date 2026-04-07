@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>祥和蔬食 - 年菜訂單管理後台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+    
+    .header { background: linear-gradient(135deg, #c0392b, #e74c3c); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 20px; }
+    .header .stats { display: flex; gap: 20px; }
+    .header .stat { text-align: center; }
+    .header .stat-num { font-size: 24px; font-weight: bold; }
+    .header .stat-label { font-size: 12px; opacity: 0.9; }
+    
+    .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+    
+    .filters { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .filters select, .filters input, .filters button { padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    .filters button { background: #c0392b; color: white; border: none; cursor: pointer; font-weight: bold; }
+    .filters button:hover { background: #a93226; }
+    .filters button.remind { background: #e67e22; }
+    .filters button.remind:hover { background: #d35400; }
+    .filters button.refresh { background: #27ae60; }
+    .filters button.refresh:hover { background: #1e8449; }
+    
+    .orders { display: flex; flex-direction: column; gap: 15px; }
+    
+    .order-card { background: white; border-radius: 10px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .order-card.unpaid { border-left: 4px solid #e74c3c; }
+    .order-card.paid { border-left: 4px solid #27ae60; }
+    .order-card.confirmed { border-left: 4px solid #3498db; }
+    
+    .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .order-id { font-weight: bold; color: #c0392b; }
+    .order-status { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+    .status-paid { background: #d5f4e6; color: #27ae60; }
+    .status-unpaid { background: #fadbd8; color: #e74c3c; }
+    .status-confirmed { background: #d4e6f1; color: #3498db; }
+    .status-pending { background: #fef9e7; color: #f39c12; }
+    
+    .order-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+    .order-field { }
+    .order-field-label { font-size: 12px; color: #888; margin-bottom: 3px; }
+    .order-field-value { font-size: 14px; font-weight: 500; }
+    .order-field-value.price { color: #c0392b; font-size: 18px; font-weight: bold; }
+    
+    .order-items { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+    .order-items-title { font-size: 12px; color: #888; margin-bottom: 5px; }
+    .order-items-list { font-size: 13px; color: #555; }
+    
+    .order-actions { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .order-actions input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; width: 120px; }
+    .order-actions button { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .order-actions button.confirm { background: #27ae60; color: white; }
+    .order-actions button.remind { background: #e67e22; color: white; }
+    .order-actions button.cancel { background: #95a5a6; color: white; }
+    
+    .toast { position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: none; z-index: 1000; }
+    .toast.error { background: #e74c3c; }
+    
+    .loading { text-align: center; padding: 40px; color: #888; }
+    
+    .empty { text-align: center; padding: 40px; color: #888; }
+    .empty span { font-size: 50px; display: block; margin-bottom: 10px; }
+    
+    @media (max-width: 768px) {
+      .header { flex-direction: column; gap: 15px; }
+      .filters { flex-direction: column; }
+      .filters > * { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧧 祥和蔬食 - 年菜訂單管理</h1>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num" id="total-count">0</div>
+      <div class="stat-label">總訂單</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="unpaid-count">0</div>
+      <div class="stat-label">待匯款</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="paid-count">0</div>
+      <div class="stat-label">已匯款</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="filters">
+    <select id="filter-status">
+      <option value="">全部狀態</option>
+      <option value="pending">待匯款</option>
+      <option value="confirmed">已確認</option>
+      <option value="paid">已匯款</option>
+    </select>
+    <select id="filter-date">
+      <option value="">全部日期</option>
+    </select>
+    <button onclick="loadOrders()" class="refresh">🔄 重新整理</button>
+    <button onclick="remindAllUnpaid()" class="remind">📤 催繳全部未收款</button>
+  </div>
+  
+  <div class="orders" id="orders-container">
+    <div class="loading">載入中...</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = '';
+let allOrders = [];
+
+async function loadOrders() {
+  const status = document.getElementById('filter-status').value;
+  const date = document.getElementById('filter-date').value;
+  
+  try {
+    let url = `${API_BASE}/api/admin/orders?`;
+    if (status) url += `status=${status}&`;
+    if (date) url += `date=${date}&`;
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (data.success) {
+      allOrders = data.orders;
+      renderOrders(data.orders);
+      updateStats(data.orders);
+      updateDateFilter(data.orders);
+    }
+  } catch (e) {
+    showToast('載入失敗: ' + e.message, true);
+  }
+}
+
+function renderOrders(orders) {
+  const container = document.getElementById('orders-container');
+  
+  if (orders.length === 0) {
+    container.innerHTML = '<div class="empty"><span>📋</span>沒有找到訂單</div>';
+    return;
+  }
+  
+  container.innerHTML = orders.map(order => {
+    const statusClass = order.paymentStatus === 'paid' ? 'paid' : 
+                        order.status === 'confirmed' ? 'confirmed' : 'unpaid';
+    const statusText = order.paymentStatus === 'paid' ? '已匯款' :
+                       order.status === 'confirmed' ? '已確認' : '待匯款';
+    const comboItems = order.combo ? order.combo.items || [] : [];
+    const sideItems = (order.sideDishes || []).map(s => `${s.name} x${s.qty}`).join(', ');
+    const allItems = [...comboItems, ...sideItems].filter(Boolean);
+    
+    return `
+      <div class="order-card ${statusClass}">
+        <div class="order-header">
+          <span class="order-id">${order.id}</span>
+          <span class="order-status status-${statusClass}">${statusText}</span>
+        </div>
+        
+        <div class="order-body">
+          <div class="order-field">
+            <div class="order-field-label">顧客姓名</div>
+            <div class="order-field-value">${order.customer.name}</div>
+          </div>
+          <div class="order-field">
+            <div class="order-field-label">電話</div>
+            <div class="order-field-value">${order.customer.phone}</div>
+          </div>
+          <div class="order-field">
+            <div class="order-field-label">取貨分店</div>
+            <div class="order-field-value">${order.customer.store}</div>
+          </div>
+          <div class="order-field">
+            <div class="order-field-label">取貨日期</div>
+            <div class="order-field-value">${order.customer.pickupDate}</div>
+          </div>
+          <div class="order-field">
+            <div class="order-field-label">下單時間</div>
+            <div class="order-field-value">${new Date(order.timestamp).toLocaleString('zh-TW')}</div>
+          </div>
+          <div class="order-field">
+            <div class="order-field-label">金額</div>
+            <div class="order-field-value price">$${order.totalAmount.toLocaleString()}</div>
+          </div>
+          <div class="order-field">
+            <div class="order-field-label">末五碼</div>
+            <div class="order-field-value">${order.paymentLast5 || '-'}</div>
+          </div>
+          <div class="order-field">
+            <div class="order-field-label">匯款日期</div>
+            <div class="order-field-value">${order.paidDate || '-'}</div>
+          </div>
+        </div>
+        
+        ${allItems.length > 0 ? `
+          <div class="order-items">
+            <div class="order-items-title">📦 訂購項目：</div>
+            <div class="order-items-list">${allItems.join('、')}</div>
+          </div>
+        ` : ''}
+        
+        ${order.notes ? `
+          <div class="order-items">
+            <div class="order-items-title">📝 備註：</div>
+            <div class="order-items-list">${order.notes}</div>
+          </div>
+        ` : ''}
+        
+        <div class="order-actions">
+          <input type="text" id="last5-${order.id}" placeholder="末五碼" value="${order.paymentLast5 || ''}">
+          <button class="confirm" onclick="confirmPayment('${order.id}')">✅ 確認匯款</button>
+          <button class="remind" onclick="remindOrder('${order.id}')">📤 催繳</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateStats(orders) {
+  document.getElementById('total-count').textContent = orders.length;
+  document.getElementById('unpaid-count').textContent = orders.filter(o => o.paymentStatus !== 'paid').length;
+  document.getElementById('paid-count').textContent = orders.filter(o => o.paymentStatus === 'paid').length;
+}
+
+function updateDateFilter(orders) {
+  const dates = [...new Set(orders.map(o => o.customer.pickupDate))].sort();
+  const select = document.getElementById('filter-date');
+  const current = select.value;
+  select.innerHTML = '<option value="">全部日期</option>' + 
+    dates.map(d => `<option value="${d}">${d}</option>`).join('');
+  if (dates.includes(current)) select.value = current;
+}
+
+async function confirmPayment(orderId) {
+  const last5 = document.getElementById(`last5-${orderId}`).value.trim();
+  
+  if (!last5) {
+    showToast('請填寫末五碼', true);
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/update-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        orderId, 
+        last5Digits: last5,
+        status: 'paid',
+        paidDate: new Date().toISOString().split('T')[0]
+      })
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast(`✅ 訂單 ${orderId} 已確認匯款！`);
+      loadOrders();
+    } else {
+      showToast('更新失敗: ' + (data.error || '未知錯誤'), true);
+    }
+  } catch (e) {
+    showToast('更新失敗: ' + e.message, true);
+  }
+}
+
+async function remindOrder(orderId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/remind/${orderId}`, {
+      method: 'POST'
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast('✅ 催繳通知已發送！');
+    } else {
+      showToast('發送失敗: ' + (data.error || '未知錯誤'), true);
+    }
+  } catch (e) {
+    showToast('發送失敗: ' + e.message, true);
+  }
+}
+
+async function remindAllUnpaid() {
+  const unpaid = allOrders.filter(o => o.paymentStatus !== 'paid');
+  
+  if (unpaid.length === 0) {
+    showToast('沒有未繳款訂單', true);
+    return;
+  }
+  
+  if (!confirm(`確定要催繳全部 ${unpaid.length} 筆未繳款訂單嗎？`)) {
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/remind-unpaid`, {
+      method: 'POST'
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast(`✅ 已發送催繳通知！成功: ${data.results.filter(r => r.sent).length} 筆`);
+      loadOrders();
+    } else {
+      showToast('發送失敗: ' + (data.error || '未知錯誤'), true);
+    }
+  } catch (e) {
+    showToast('發送失敗: ' + e.message, true);
+  }
+}
+
+function showToast(message, isError = false) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = 'toast' + (isError ? ' error' : '');
+  toast.style.display = 'block';
+  setTimeout(() => toast.style.display = 'none', 3000);
+}
+
+// Event listeners
+document.getElementById('filter-status').addEventListener('change', loadOrders);
+document.getElementById('filter-date').addEventListener('change', loadOrders);
+
+// Initial load
+loadOrders();
+
+// Auto refresh every 30 seconds
+setInterval(loadOrders, 30000);
+</script>
+
+</body>
+</html>
