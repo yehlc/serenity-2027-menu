@@ -107,7 +107,20 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-// ============ LINE Webhook ============
+// ============ LINE Webhook (GET for LINE verification) ============
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  
+  if (mode === 'subscribe' && token === '') {
+    res.send(challenge);
+  } else {
+    res.send('ERROR');
+  }
+});
+
+// ============ LINE Webhook (POST for LINE events) ============
 app.post('/webhook', (req, res) => {
   if (lineClient && lineConfig.channelSecret) {
     const sig = req.headers['x-line-signature'];
