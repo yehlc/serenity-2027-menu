@@ -1,5 +1,5 @@
 [build]
-  builder = "NODESOURCE"
+  builder = "NIXPACKS"
   buildCommand = "npm install"
   startCommand = "node server.js"
 
